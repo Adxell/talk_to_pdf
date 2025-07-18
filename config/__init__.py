@@ -7,7 +7,8 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    api_key_google_palm: str
+    API_KEY_GOOGLE_PALM: str
+    PGVECTOR_CONNECTION_STRING: str
 
     class Config:
         case_sensitive = True
