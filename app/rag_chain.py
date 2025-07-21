@@ -1,16 +1,20 @@
 import os 
 from operator import itemgetter
 
-from config import settings
+from app.config import settings
+
+from typing import TypedDict
+
 
 from langchain_community.vectorstores.pgvector import PGVector
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 
-
+ 
 vector_store = PGVector(
-    embedding_function=GoogleGenerativeAIEmbeddings(),
+    embedding_function=GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-exp-03-07", 
+                                          google_api_key=settings.GOOGLE_API_KEY),
     collection_name="pdfs_collection",
     connection_string=settings.PGVECTOR_CONNECTION_STRING
 )
@@ -24,12 +28,24 @@ Answer:
 prompt = ChatPromptTemplate.from_template(template)
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model="gemini-2.0-flash",
     temperature=0.0,
     max_output_tokens=1024,
-    streaming=True
+    streaming=True, 
+    google_api_key=settings.GOOGLE_API_KEY
 )
 
-chain = (
-    prompt | vector_store | llm
-) | StrOutputParser()
+
+class RagInput(TypedDict):
+    question: str
+
+
+final_chain = (
+    {
+    "context": (itemgetter("question") | vector_store.as_retriever()),
+    "question": itemgetter("question")
+    }
+    | prompt
+    | llm
+    | StrOutputParser()
+).with_types(input_type=RagInput)
